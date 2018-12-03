@@ -5,6 +5,8 @@ let conditions=new Map();
 let returns=new Map();
 let c=0,r=0;
 let lines=[];
+let inputv=new Map();
+
 
 const parseCode = (codeToParse) => {
     lines=codeToParse.split('\n');
@@ -12,7 +14,8 @@ const parseCode = (codeToParse) => {
 };
 
 
-function start(parsed){
+function start(parsed,inputVector){
+    getInputVector(inputVector);
     let func=extractFunction(parsed);
     buildDataStructure(func.body.body);
     return lines;
@@ -64,32 +67,32 @@ function changeLeft(dec) {
         return '('+changeLeft(left.left)+left.operator+changeRight(left.right)+')';
     }
     if(left.type=='Identifier'){
-        if(assignments.has(left.name)){
-            return assignments.get(left.name);
-        }
-        if(locals.has(left.name)){
-            return locals.get(left.name);
-        }
-        return left.name;
+        return identifer(left.name);
     }
     else{
         return continueLeftRight(left);
     }
 }
 
+function identifer(name) {
+    if(inputv.has(name)){
+        return inputv.get(name);
+    }
+    if(assignments.has(name)){
+        return assignments.get(name);
+    }
+    if(locals.has(name)){
+        return locals.get(name);
+    }
+    return name;
+}
 function changeRight(dec) {
     let right=dec;
     if(right.type=='BinaryExpression'){
         return '('+changeLeft(right.left)+right.operator+changeRight(right.right)+')';
     }
     if(right.type=='Identifier'){
-        if(assignments.has(right.name)){
-            return assignments.get(right.name);
-        }
-        if(locals.has(right.name)){
-            return locals.get(right.name);
-        }
-        return right.name;
+        return identifer(right.name);
     }
     else{
         return continueLeftRight(right);
@@ -147,7 +150,12 @@ function statement(stat) {
 
 function testStat(test) {
     conditions.set('condition'+c,changeLeft(test.left)+test.operator+changeLeft(test.right));
-    lines[test.loc.start.line-1]=lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){';
+    if(eval(conditions.get('condition'+c))){
+        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is green';
+    }
+    else{
+        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is red';
+    }
     c++;
 }
 
@@ -189,5 +197,26 @@ function identifierExp(exp) {
     return exp.name;
 }
 
+/////////////////////////////////
+////////part b eval()///////////
+///////////////////////////////
+
+function getInputVector(inp) {
+    let exp=inp.body[0].expression.expressions;
+    for (let i = 0; i <exp.length ; i++) {
+        if(exp[i].right.type=='ArrayExpression'){
+            for (let j = 0; j <exp[i].right.elements.length ; j++) {
+                inputv.set(exp[i].left.name+'['+j+']',exp[i].right.value);
+            }
+        }
+        else{
+            inputv.set(exp[i].left.name,exp[i].right.value);
+        }
+    }
+}
+
+function evaltion(str) {
+    return eval(str);
+}
 
 export {parseCode,start};
