@@ -13,8 +13,16 @@ const parseCode = (codeToParse) => {
     return esprima.parseScript(codeToParse,{loc:true});
 };
 
-
+function reset() {
+    locals=new Map();
+    assignments=new Map();
+    conditions=new Map();
+    returns=new Map();
+    c=0,r=0;
+    inputv=new Map();
+}
 function start(parsed,inputVector){
+    reset();
     getInputVector(inputVector);
     let func=extractFunction(parsed);
     buildDataStructure(func.body.body);
@@ -26,6 +34,9 @@ function extractFunction(parsed) {
     for (let i = 0; i <parsed.body.length ; i++) {
         if(parsed.body[i].type=='FunctionDeclaration'){
             return parsed.body[i];
+        }
+        if(parsed.body[i].type=='VariableDeclaration'){
+            globalsVector(parsed.body[i].declarations);
         }
     }
 }
@@ -149,7 +160,9 @@ function statement(stat) {
 }
 
 function testStat(test) {
-    conditions.set('condition'+c,changeLeft(test.left)+test.operator+changeLeft(test.right));
+    let left=changeLeft(test.left);
+    let right=changeRight(test.right);
+    conditions.set('condition'+c,left+test.operator+right);
     if(eval(conditions.get('condition'+c))){
         lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is green';
     }
@@ -167,7 +180,9 @@ function returnState(stat) {
 
 function continueLeftRight(dec) {
     if(dec.type=='MemberExpression'){
-        return dec.object.name+'['+Exp(dec.property)+']';
+        let some= dec.object.name+'['+Exp(dec.property)+']';
+        some=getValueinputVector(some);
+        return some;
     }
     return dec.value;
 }
@@ -188,6 +203,9 @@ function Exp(exp) {
 }
 
 function identifierExp(exp) {
+    if(inputv.has(exp.name)){
+        return inputv.get(exp.name);
+    }
     if(assignments.has(exp.name)){
         return assignments.get(exp.name);
     }
@@ -213,10 +231,26 @@ function getInputVector(inp) {
             inputv.set(exp[i].left.name,exp[i].right.value);
         }
     }
+
+}
+function globalsVector(dec) {
+    for (let i = 0; i <dec.length ; i++) {
+        if(dec[i].init.type=='ArrayExpression'){
+            for (let j = 0; j <dec[i].init.elements.length ; j++) {
+                inputv.set(dec[i].id.name+'['+j+']',dec[i].init.elements[j].value);
+            }
+        }
+        else{
+            inputv.set(dec[i].id.name,dec[i].init.value);
+        }
+    }
 }
 
-function evaltion(str) {
-    return eval(str);
+function getValueinputVector(exp) {
+    if(inputv.has(exp)){
+        return inputv.get(exp);
+    }
+    return exp;
 }
 
 export {parseCode,start};
