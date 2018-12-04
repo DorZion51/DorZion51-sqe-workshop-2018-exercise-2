@@ -3,9 +3,10 @@ let locals=new Map();
 let assignments=new Map();
 let conditions=new Map();
 let returns=new Map();
-let c=0,r=0;
+let c=0,r=0,p=0;
 let lines=[];
 let inputv=new Map();
+let params=new Map();
 
 
 const parseCode = (codeToParse) => {
@@ -18,13 +19,14 @@ function reset() {
     assignments=new Map();
     conditions=new Map();
     returns=new Map();
-    c=0,r=0;
+    c=0,r=0,p=0;
     inputv=new Map();
+    params=new Map();
 }
 function start(parsed,inputVector){
     reset();
-    getInputVector(inputVector);
     let func=extractFunction(parsed);
+    getInputVector(inputVector);
     buildDataStructure(func.body.body);
     return lines;
     //let x=2;
@@ -34,6 +36,7 @@ function start(parsed,inputVector){
 function extractFunction(parsed) {
     for (let i = 0; i <parsed.body.length ; i++) {
         if(parsed.body[i].type=='FunctionDeclaration'){
+            setParams(parsed.body[i]);
             return parsed.body[i];
         }
         if(parsed.body[i].type=='VariableDeclaration'){
@@ -45,6 +48,12 @@ function extractFunction(parsed) {
     }
 }
 
+function setParams(func) {
+    for (let i = 0; i <func.params.length ; i++) {
+        params.set(p,func.params[i].name);
+        p++;
+    }
+}
 function buildDataStructure(funcArray) {
     for (let i = 0; i <funcArray.length ; i++) {
         if(funcArray[i].type=='VariableDeclaration'){
@@ -303,13 +312,13 @@ function identifierExp(exp) {
 function getInputVector(inp) {
     let exp=inp.body[0].expression.expressions;
     for (let i = 0; i <exp.length ; i++) {
-        if(exp[i].right.type=='ArrayExpression'){
-            for (let j = 0; j <exp[i].right.elements.length ; j++) {
-                inputv.set(exp[i].left.name+'['+j+']',exp[i].right.elements[j].value);
-            }
+        if(exp[i].type=='Literal'){
+            inputv.set(params.get(i),exp[i].value);
         }
-        else {
-            inputv.set(exp[i].left.name,exp[i].right.value);
+        if(exp[i].type=='ArrayExpression'){
+            for (let j = 0; j <exp[i].elements.length ; j++) {
+                inputv.set(params.get(i)+'['+j+']',exp[i].elements[j].value);
+            }
         }
     }
 
