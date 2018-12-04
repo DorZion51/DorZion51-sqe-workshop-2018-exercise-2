@@ -30,6 +30,7 @@ function start(parsed,inputVector){
     //let x=2;
 }
 
+
 function extractFunction(parsed) {
     for (let i = 0; i <parsed.body.length ; i++) {
         if(parsed.body[i].type=='FunctionDeclaration'){
@@ -37,6 +38,9 @@ function extractFunction(parsed) {
         }
         if(parsed.body[i].type=='VariableDeclaration'){
             globalsVector(parsed.body[i].declarations);
+        }
+        if(parsed.body[i].type=='ExpressionStatement'){
+            assExp(parsed.body[i].expression);
         }
     }
 }
@@ -78,17 +82,17 @@ function changeLeft(dec) {
         return '('+changeLeft(left.left)+left.operator+changeRight(left.right)+')';
     }
     if(left.type=='Identifier'){
-        return identifer(left.name);
+        return ' '+identifer(left.name)+' ';
     }
     else{
-        return continueLeftRight(left);
+        return ' '+continueLeftRight(left)+' ';
     }
 }
 
 function identifer(name) {
-    if(inputv.has(name)){
+    /*if(inputv.has(name)){
         return inputv.get(name);
-    }
+    }*/
     if(assignments.has(name)){
         return assignments.get(name);
     }
@@ -103,7 +107,7 @@ function changeRight(dec) {
         return '('+changeLeft(right.left)+right.operator+changeRight(right.right)+')';
     }
     if(right.type=='Identifier'){
-        return identifer(right.name);
+        return ' '+identifer(right.name)+' ';
     }
     else{
         return continueLeftRight(right);
@@ -131,17 +135,47 @@ function unaryExp(dec) {
 function assExp(exp) {
     checkAassLocals(exp);
     if(exp.type=='AssignmentExpression'){
-
-        if(exp.right.type=='UnaryExpprssion'){
-            assignments.set(exp.left.name,exp.right.operator+unaryExp(exp.right));
+        if(exp.left.type=='MemberExpression'){
+            assExp2(exp);
         }
-        else if(exp.right.type=='BinaryExpression'){
-            assignments.set(exp.left.name,changeLeft(exp.right.left)+exp.right.operator+changeRight(exp.right.right));
+        else{
+            if(exp.right.type=='UnaryExpprssion'){
+                changeIfGlobal(exp.left.name,exp.right.operator+unaryExp(exp.right));
+                assignments.set(exp.left.name,exp.right.operator+unaryExp(exp.right));
+            }
+            else if(exp.right.type=='BinaryExpression'){
+                changeIfGlobal(exp.left.name,changeLeft(exp.right.left)+exp.right.operator+changeRight(exp.right.right));
+                assignments.set(exp.left.name,changeLeft(exp.right.left)+exp.right.operator+changeRight(exp.right.right));
+            }
         }
     }
 
 }
 
+function assExp2(exp) {
+    let pro=getProperty(exp.left.property);
+    pro=evaluation(pro);
+    if(exp.right.type=='UnaryExpprssion'){
+        changeIfGlobal(exp.left.object.name+'['+pro+']',exp.right.operator+unaryExp(exp.right));
+        assignments.set(exp.left.object.name+'['+pro+']',exp.right.operator+unaryExp(exp.right));
+    }
+    else if(exp.right.type=='BinaryExpression'){
+        changeIfGlobal(exp.left.object.name+'['+pro+']',changeLeft(exp.right.left)+exp.right.operator+changeRight(exp.right.right));
+        assignments.set(exp.left.object.name+'['+pro+']',changeLeft(exp.right.left)+exp.right.operator+changeRight(exp.right.right));
+    }
+    else if(exp.right.type=='Literal'){
+        changeIfGlobal(exp.left.object.name+'['+pro+']',exp.right.value);
+        assignments.set(exp.left.object.name+'['+pro+']',exp.right.value);
+    }
+    else{
+        changeIfGlobal(exp.left.object.name+'['+pro+']',exp.right.name);
+        assignments.set(exp.left.object.name+'['+pro+']',exp.right.name);
+    }
+}
+
+function getProperty(pro) {
+    return changeRight(pro);
+}
 function checkAassLocals(exp) {
     if(assignments.has(exp.left.name))
         assignments.set(exp.left.name,locals.get(exp.left.name));
@@ -172,11 +206,11 @@ function testStat(test) {
     let left=changeLeft(test.left);
     let right=changeRight(test.right);
     conditions.set('condition'+c,left+test.operator+right);
-    if(eval(conditions.get('condition'+c))){
-        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is green';
+    if(evaluation(conditions.get('condition'+c))){
+        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){'+'//this is green';
     }
     else{
-        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is red';
+        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){'+'//this is red';
     }
     c++;
 }
@@ -194,24 +228,38 @@ function testStatB(test) {
         let unary=test.operator+unaryExp(test.argument);
         conditions.set('condition'+c,unary);
     }
-    if(eval(conditions.get('condition'+c))){
+    if(evaluation(conditions.get('condition'+c))){
         lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is green';
     }
     else{
-        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is red';
+        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){'+'//this is red';
     }c++;
 }
 
 function returnState(stat) {
-    returns.set('return'+r,changeLeft(stat.argument.left)+stat.argument.operator+changeRight(stat.argument.right));
-    lines[stat.loc.start.line-1]=lines[stat.loc.start.line-1].slice(0,stat.loc.start.column)+'return '+returns.get('return'+r);
+    if(stat.argument.type=='Identifier'){
+        returns.set('return'+r,identifer(stat.argument.name));
+    }
+    else if(stat.argument.type=='Literal'){
+        returns.set('return'+r,stat.argument.value);
+    }
+    else if(stat.argument.type=='BinaryExpression'){
+        returns.set('return'+r,changeLeft(stat.argument.left)+stat.argument.operator+changeRight(stat.argument.right));
+    }
+    else if(stat.argument.type=='UnaryExpression'){
+        returns.set('return'+r,stat.argument.operator+unaryExp(stat.argument));
+    }
+    else{
+        returns.set('return'+r,continueLeftRight(stat.argument));
+    }
+    lines[stat.loc.start.line-1]=lines[stat.loc.start.line-1].slice(0,stat.loc.start.column)+'return '+returns.get('return'+r).replace(/\s+/g, '');
     r++;
 }
 
 function continueLeftRight(dec) {
     if(dec.type=='MemberExpression'){
         let some= dec.object.name+'['+Exp(dec.property)+']';
-        some=getValueinputVector(some);
+        //some=getValueinputVector(some);
         return some;
     }
     if(dec.type=='Identifier'){
@@ -260,7 +308,7 @@ function getInputVector(inp) {
                 inputv.set(exp[i].left.name+'['+j+']',exp[i].right.elements[j].value);
             }
         }
-        else{
+        else {
             inputv.set(exp[i].left.name,exp[i].right.value);
         }
     }
@@ -278,12 +326,46 @@ function globalsVector(dec) {
         }
     }
 }
-
-function getValueinputVector(exp) {
-    if(inputv.has(exp)){
-        return inputv.get(exp);
+function evaluation(str) {
+    try {
+        str = str.split(' ');
+        let str2 = '';
+        for (let i = 0; i < str.length; i++) {
+            if (inputv.has(str[i])) {
+                str2 = str2 + inputv.get(str[i]);
+            }
+            else {
+                str2 = str2 + str[i];
+            }
+        }
+        return eval(str2);
     }
-    return exp;
+    catch (e) {
+        return evaluation2(str);
+    }
+}
+function evaluation2(str) {
+    if(isNaN(str)){
+        let str2 = '';
+        let str3 = '';
+        for (let i = 0; i < str.length; i++) {
+            if (inputv.has(str[i])) {
+                str2 = inputv.get(str[i]);
+            }
+            if (str[i].includes('==')) {
+                str3 = str[i].substring(2);
+            }
+        }
+        return str2 == str3;
+    }
+    else {
+        return str;
+    }
+}
+
+function changeIfGlobal(str,str1) {
+    if(inputv.has(str))
+        inputv.set(str,str1);
 }
 
 export {parseCode,start};
