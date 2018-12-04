@@ -202,18 +202,21 @@ function statement(stat) {
             buildDataStructure(stat.body.body);
         }
         else {
-            buildDataStructure(stat.consequent.body);
-            if(stat.alternate!=null){
-                if (stat.alternate.type == 'BlockStatement') {
-                    buildDataStructure(stat.alternate.body);
-                } else {
-                    statement(stat.alternate);
-                }
-            }
+            statementB(stat);
         }
     }
 }
 
+function statementB(stat) {
+    buildDataStructure(stat.consequent.body);
+    if(stat.alternate!=null){
+        if (stat.alternate.type == 'BlockStatement') {
+            buildDataStructure(stat.alternate.body);
+        } else {
+            statement(stat.alternate);
+        }
+    }
+}
 
 function testStat(test) {
     let left=changeLeft(test.left);
