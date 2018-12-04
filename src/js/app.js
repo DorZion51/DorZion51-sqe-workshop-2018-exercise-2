@@ -18,7 +18,6 @@ function write(lines) {
     for (let i = 0; i <lines.length ; i++) {
         if(lines[i]!='~')
             str=str+lines[i]+'\n';
-
     }
     $('#parsedCode').val(str);
 }

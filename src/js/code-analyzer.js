@@ -111,12 +111,20 @@ function changeRight(dec) {
 }
 
 function unaryExp(dec) {
-    let unary=dec.init.argument;
+    let unary='';
+    try{
+        unary=dec.init.argument;
+    }catch (e) {
+        unary=dec;
+    }
     if(unary.type=='Literal'){
         return unary.value;
     }
     else if(unary.type=='BinaryExpression'){
         return '('+changeLeft(unary.left)+unary.operator+changeRight(unary.right)+')';
+    }
+    else{//member
+        return continueLeftRight(dec);
     }
 }
 
@@ -144,12 +152,13 @@ function statement(stat) {
         returnState(stat);
     }
     else {
-        testStat(stat.test);
+        if(stat.test.type=='BinaryExpression')
+            testStat(stat.test);
+        else{testStatB(stat.test);}
         if(stat.type=='WhileStatement'){
             buildDataStructure(stat.body.body);
         }
-        else {
-            buildDataStructure(stat.consequent.body);
+        else { buildDataStructure(stat.consequent.body);
             if(stat.alternate.type=='BlockStatement'){
                 buildDataStructure(stat.alternate.body);
             } else{
@@ -172,6 +181,27 @@ function testStat(test) {
     c++;
 }
 
+function testStatB(test) {
+    if(test.type=='MemberExpression'){
+        let arr=continueLeftRight(test);
+        conditions.set('condition'+c,arr);
+    }
+    if(test.type=='Identifier'){
+        let id=identifierExp(test);
+        conditions.set('condition'+c,id);
+    }
+    if(test.type=='UnaryExpression'){
+        let unary=test.operator+unaryExp(test.argument);
+        conditions.set('condition'+c,unary);
+    }
+    if(eval(conditions.get('condition'+c))){
+        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is green';
+    }
+    else{
+        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is red';
+    }c++;
+}
+
 function returnState(stat) {
     returns.set('return'+r,changeLeft(stat.argument.left)+stat.argument.operator+changeRight(stat.argument.right));
     lines[stat.loc.start.line-1]=lines[stat.loc.start.line-1].slice(0,stat.loc.start.column)+'return '+returns.get('return'+r);
@@ -183,6 +213,9 @@ function continueLeftRight(dec) {
         let some= dec.object.name+'['+Exp(dec.property)+']';
         some=getValueinputVector(some);
         return some;
+    }
+    if(dec.type=='Identifier'){
+        return identifer(dec.name);
     }
     return dec.value;
 }
@@ -224,7 +257,7 @@ function getInputVector(inp) {
     for (let i = 0; i <exp.length ; i++) {
         if(exp[i].right.type=='ArrayExpression'){
             for (let j = 0; j <exp[i].right.elements.length ; j++) {
-                inputv.set(exp[i].left.name+'['+j+']',exp[i].right.value);
+                inputv.set(exp[i].left.name+'['+j+']',exp[i].right.elements[j].value);
             }
         }
         else{
