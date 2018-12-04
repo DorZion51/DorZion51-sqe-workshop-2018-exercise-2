@@ -201,25 +201,29 @@ function statement(stat) {
         if(stat.type=='WhileStatement'){
             buildDataStructure(stat.body.body);
         }
-        else { buildDataStructure(stat.consequent.body);
-            if(stat.alternate.type=='BlockStatement'){
-                buildDataStructure(stat.alternate.body);
-            } else{
-                statement(stat.alternate);
+        else {
+            buildDataStructure(stat.consequent.body);
+            if(stat.alternate!=null){
+                if (stat.alternate.type == 'BlockStatement') {
+                    buildDataStructure(stat.alternate.body);
+                } else {
+                    statement(stat.alternate);
+                }
             }
-        }//if
+        }
     }
 }
+
 
 function testStat(test) {
     let left=changeLeft(test.left);
     let right=changeRight(test.right);
     conditions.set('condition'+c,left+test.operator+right);
     if(evaluation(conditions.get('condition'+c))){
-        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){'+'//this is green';
+        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){';
     }
     else{
-        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){'+'//this is red';
+        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){';
     }
     c++;
 }
@@ -238,10 +242,10 @@ function testStatB(test) {
         conditions.set('condition'+c,unary);
     }
     if(evaluation(conditions.get('condition'+c))){
-        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){'+'//this is green';
+        lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c)+'){';
     }
     else{
-        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){'+'//this is red';
+        lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){';
     }c++;
 }
 
