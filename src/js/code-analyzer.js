@@ -81,7 +81,19 @@ function varDec(dec) {
         else if(dec[i].init.type=='BinaryExpression'){
             locals.set(dec[i].id.name,changeLeft(dec[i].init.left)+dec[i].init.operator+changeRight(dec[i].init.right));
         }
+        else{
+            ArrayExp(dec[i])
+        }
+    }
+}
 
+function ArrayExp(exp) {
+    for (let j = 0; j <exp.init.elements.length ; j++) {
+        let val=exp.init.elements[j].value;
+        if(inputv.has(val)){
+            val=inputv.get(val);
+        }
+        locals.set(exp.id.name+'['+j+']',val);
     }
 }
 
@@ -221,14 +233,101 @@ function statementB(stat) {
 function testStat(test) {
     let left=changeLeft(test.left);
     let right=changeRight(test.right);
+    let flag=true;
+    let le=clear(left);
+    let ri=clear(right);
     conditions.set('condition'+c,left+test.operator+right);
     if(evaluation(conditions.get('condition'+c))){
         lines[test.loc.start.line-1]='@'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){';
     }
     else{
         lines[test.loc.start.line-1]='!'+lines[test.loc.start.line-1].slice(0,test.loc.start.column)+conditions.get('condition'+c).replace(/\s+/g, '')+'){';
+        flag=false;
+    }if(checkass(le,ri)){
+        changeLine3(test.loc.start.line-1,test.loc.start.column,test.operator,le,ri,flag);
     }
-    c++;
+    else if(checkLocal(le,ri)){
+        changeLine(test.loc.start.line-1,test.loc.start.column,test.operator,le,ri,flag);
+    }c++;
+}
+
+function clear(str) {
+    try {
+        return str.replace(/\s+/g, '');
+    }catch (e) {
+        return str;
+    }
+}
+function changeLine3(line,col,op,left,right,flag) {
+    if(assignments.has(left)&&assignments.has(right)){
+        if(flag) {
+            lines[line] = lines[line].slice(0, col+1) + assignments.get(left) + op + assignments.get(right) + '){';
+            return;
+        }
+        lines[line] = lines[line].slice(0, col+1) + assignments.get(left) + op + assignments.get(right) + '){';
+    }
+    else{
+        changeLine4(line,col,op,left,right,flag);
+    }
+}
+
+function changeLine4(line,col,op,left,right,flag) {
+    if(assignments.has(left)){
+        if(flag){
+            lines[line]=lines[line].slice(0,col+1)+assignments.get(left)+op+right+'){';
+            return;
+        }
+        lines[line]=lines[line].slice(0,col+1)+assignments.get(left)+op+right+'){';
+    }
+    else{
+        if(flag) {
+            lines[line] = lines[line].slice(0, col+1) + left + op + assignments.get(right) + '){';
+            return;
+        }
+        lines[line] = + lines[line].slice(0, col+1) + left + op + assignments.get(right) + '){';
+    }
+}
+
+function changeLine(line,col,op,left,right,flag) {
+    if(locals.has(left)&&locals.has(right)){
+        if(flag) {
+            lines[line] =lines[line].slice(0, col+1) + locals.get(left) + op + locals.get(right) + '){';
+            return;
+        }
+        lines[line] = lines[line].slice(0, col+1) + locals.get(left) + op + locals.get(right) + '){';
+    }
+    else{
+        changeLine2(line,col,op,left,right,flag);
+    }
+}
+
+function changeLine2(line,col,op,left,right,flag) {
+    if(locals.has(left)){
+        if(flag){
+            lines[line]=lines[line].slice(0,col+1)+locals.get(left)+op+right+'){';
+            return;
+        }
+        lines[line]=lines[line].slice(0,col+1)+locals.get(left)+op+right+'){';
+    }
+    else{
+        if(flag) {
+            lines[line]= lines[line].slice(0, col+1) + left + op + locals.get(right) + '){';
+            return;
+        }
+        lines[line] =lines[line].slice(0, col+1) + left + op + locals.get(right) + '){';
+    }
+}
+
+function checkLocal(vari,vari2) {
+    if(locals.has(vari)||locals.has(vari2))
+        return true;
+    return false;
+}
+
+function checkass(vari,vari2) {
+    if(assignments.has(vari)||assignments.has(vari2))
+        return true;
+    return false;
 }
 
 function testStatB(test) {
@@ -274,7 +373,8 @@ function returnState(stat) {
 
 function continueLeftRight(dec) {
     if(dec.type=='MemberExpression'){
-        let some= dec.object.name+'['+Exp(dec.property)+']';
+        let some= dec.object.name+'['+evaluation(Exp(dec.property))+']';
+        some=Members(some);
         //some=getValueinputVector(some);
         return some;
     }
@@ -282,6 +382,16 @@ function continueLeftRight(dec) {
         return identifer(dec.name);
     }
     return dec.value;
+}
+
+function Members(exp) {
+    if(assignments.has(exp)){
+        return assignments.get(exp);
+    }
+    if(locals.has(exp)){
+        return locals.get(exp);
+    }
+    return exp;
 }
 
 function Exp(exp) {
@@ -322,13 +432,24 @@ function getInputVector(inp) {
         if(exp[i].type=='Literal'){
             inputv.set(params.get(i),exp[i].value);
         }
-        if(exp[i].type=='ArrayExpression'){
+        else if(exp[i].type=='ArrayExpression'){
             for (let j = 0; j <exp[i].elements.length ; j++) {
                 inputv.set(params.get(i)+'['+j+']',exp[i].elements[j].value);
             }
         }
+        else{
+            getInputVector2(i,exp[i]);
+        }
     }
+}
 
+function getInputVector2(i,exp) {
+    if(exp.type=='Identifier'){
+        inputv.set(params.get(i),exp.name);
+    }
+    else {
+        inputv.set(params.get(i),changeRight(exp));
+    }
 }
 function globalsVector(dec) {
     for (let i = 0; i <dec.length ; i++) {
@@ -350,8 +471,8 @@ function evaluation(str) {
             if (inputv.has(str[i])) {
                 str2 = str2 + inputv.get(str[i]);
             }
-            else {
-                str2 = str2 + str[i];
+            else{
+                str2=str2+checkother(str[i]);
             }
         }
         return eval(str2);
@@ -360,6 +481,18 @@ function evaluation(str) {
         return evaluation2(str);
     }
 }
+
+function checkother(str) {
+    if(assignments.has(str)){
+        return assignments.get(str);
+    }
+    if(locals.has(str)){
+        return locals.get(str);
+    }
+    return str;
+}
+
+
 function evaluation2(str) {
     if(isNaN(str)){
         let str2 = '';
