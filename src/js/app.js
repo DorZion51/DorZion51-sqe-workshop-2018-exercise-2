@@ -29,10 +29,12 @@ function write(lines) {
 function forGreenRed(line) {
     if(line.indexOf('@')==0&&!line.includes('while')){
         line=''+line.substring(1);
+        line=line.split('<').join(' < ');
         return '<a style="background-color:green;">'+line.split(' ').join('&nbsp ')+'</a>';
     }
     else if(line.indexOf('!')==0&&!line.includes('while')){
         line=''+line.substring(1);
+        line=line.split('<').join(' < ');
         return '<a style="background-color:red;">'+line.split(' ').join('&nbsp ')+'</a>';
     }
     else {
@@ -43,6 +45,7 @@ function forGreenRed(line) {
 function forGreenRed2(line) {
     if(line.includes('while')){
         line=''+line.substring(1);
+        line=line.split('<').join(' < ');
         return '<a>'+line.split(' ').join('&nbsp ')+'</a>';
     }
     else{
