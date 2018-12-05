@@ -82,7 +82,7 @@ function varDec(dec) {
             locals.set(dec[i].id.name,changeLeft(dec[i].init.left)+dec[i].init.operator+changeRight(dec[i].init.right));
         }
         else{
-            ArrayExp(dec[i])
+            ArrayExp(dec[i]);
         }
     }
 }
