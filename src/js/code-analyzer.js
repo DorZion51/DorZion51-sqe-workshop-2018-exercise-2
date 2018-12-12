@@ -5,6 +5,7 @@ let ass=new Map();
 let lines=[];
 let p=0;
 let helpMap=new Map();
+let flag=true;
 
 const parseCode = (codeToParse) => {
     lines=codeToParse.split('\n');
@@ -18,7 +19,7 @@ function reset() {
     lines=[];
     p=0;
     helpMap=new Map();
-
+    flag=true;
 }
 
 function start(parsed,inputvector){
@@ -91,13 +92,13 @@ function checkTheOthers(exp) {
     if(exp.type=='Identifier'){
         return checkMaps(exp.name);
     }
-    if(exp.type=='UnaryExpression'){
+    else if(exp.type=='UnaryExpression'){
         return unaryTreatment(exp);
     }
-    if(exp.type=='BinaryExpression'){
+    else if(exp.type=='BinaryExpression'){
         return binaryTreatment(exp);
     }
-    if(exp.type=='MemberExpression'){
+    else{//membership
         return memberShipTreatment(exp);
     }
 }
@@ -125,9 +126,7 @@ function ifTreatment(ifstat) {
 
 
 function consequentTreatment(cons) {
-    if(cons.type=='BlockStatement'){
-        blockStatTreatment(cons);
-    }
+    blockStatTreatment(cons); //blockstatement
 }
 
 function testTreatment(test) {
@@ -152,13 +151,20 @@ function blockStatTreatment(block) {
 }
 
 function checkMaps(id) {
-    if(ass.has(id)){
+    if(ass.has(id)&&locals.has(id)&&flag){
         return ass.get(id);
     }
+    let i=some(id);
+    if(ass.has(i)){
+        return ass.get(i);
+    }
+    return i;
+}
+
+function some(id) {
     if(locals.has(id)){
         return locals.get(id);
     }
-
     return id;
 }
 
@@ -250,9 +256,7 @@ function setGlobals(vard) {
 }
 
 function expStatTreatment(exp) {
-    if(exp.expression.type=='AssignmentExpression'){
-        assExpTreatment(exp.expression);
-    }
+    assExpTreatment(exp.expression);//ass
 }
 
 function arrayExpAssTreament(name,arr) {
@@ -267,6 +271,7 @@ function arrayExpAssTreament(name,arr) {
 }
 
 function assExpTreatment(vard) {
+    flag=false;
     let left='';let right='';
     if(vard.left.type=='Identifier'){
         left=vard.left.name;
@@ -283,6 +288,7 @@ function assExpTreatment(vard) {
     else{
         right=checkTheOthers(vard.right);
         ass.set(left,right);}
+    flag=true;
 }
 
 function setParams(params) {
@@ -368,60 +374,58 @@ function checkTheOthers2(exp) {
     if(exp.type=='Identifier'){
         return identifier(exp);
     }
-    if(exp.type=='UnaryExpression'){
+    else if(exp.type=='UnaryExpression'){
         return unaryTreatment2(exp);
     }
-    if(exp.type=='BinaryExpression'){
+    else if(exp.type=='BinaryExpression'){
         return binaryTreatment2(exp);
     }
-    if(exp.type=='MemberExpression'){
+    else{
         return memberShipTreatment2(exp);
     }
 }
 
 function identifier(exp) {
-    if(inputv.has(exp.name)){
-        let x=inputv.get(exp.name);
-        if(isNaN(x)){
-            return '\''+x+'\'';
+    if (inputv.has(exp.name)) {
+        let x = inputv.get(exp.name);
+        if (isNaN(x)) {
+            return '\'' + x + '\'';
         }
         return x;
-    }else{
-        return '\''+exp.name+'\'';
+    } else {
+        return '\'' + exp.name + '\'';
     }
 }
 
 function argTreatment2(arg) {
-    if(arg.type=='Literal'){
+    if (arg.type == 'Literal') {
         return arg.value;
     }
-    else{
+    else {
         return checkTheOthers2(arg);
     }
 }
 
 function unaryTreatment2(unary) {
-    return unary.operator+'('+argTreatment2(unary.argument)+')';
+    return unary.operator + '(' + argTreatment2(unary.argument) + ')';
 }
 
 function binaryTreatment2(bin) {
-    return '('+argTreatment2(bin.left)+bin.operator+argTreatment2(bin.right)+')';
+    return '(' + argTreatment2(bin.left) + bin.operator + argTreatment2(bin.right) + ')';
 }
 
 function memberShipTreatment2(member) {
-    let x=member.object.name+'['+argTreatment2(member.property)+']';
-    x=checkMaps(x);
-    if(inputv.has(x)){
-        let x1=inputv.get(x);
-        if(isNaN(x1)){
-            return '\''+x1+'\'';
+    let x = member.object.name + '[' + argTreatment2(member.property) + ']';
+    x = checkMaps(x);
+    if (inputv.has(x)) {
+        let x1 = inputv.get(x);
+        if (isNaN(x1)) {
+            return '\'' + x1 + '\'';
         }
         return x1;
     }
-    if(isNaN(x)){
-        return '\''+x+'\'';
+    else {
+        return '\'' + x + '\'';
     }
-    return x;
 }
-
 export {parseCode,start};
